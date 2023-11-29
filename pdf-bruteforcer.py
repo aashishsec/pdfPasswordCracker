@@ -1,8 +1,13 @@
 import colorama,random,argparse,concurrent.futures
+
 from PyPDF2 import PdfReader,PdfFileWriter
+
 from os import path
+
 from sys import exit
+
 from termcolor import colored
+
 from datetime import datetime
 
 from colorama import Fore, Style
@@ -34,7 +39,6 @@ random_color = random.choice(colors)
 bold = Style.BRIGHT
 
 
-
 def banner():
 
     print(f'''{bold}{random_color}
@@ -60,6 +64,7 @@ def banner():
 
     print("-" * 80)
 
+
 def get_args():
     
     parser=argparse.ArgumentParser(description=f"""{bold}{random_color}pdfPasswordCracker is a Password Protected PDF file Bruteforcer with Python.""")
@@ -68,34 +73,85 @@ def get_args():
 
     parser.add_argument('-p','--ProtectedPDF',metavar='ProtectedPDF',help=f"[{bold}{random_color}INFO]: {bold}{random_color}passwordProtectedPDF file.")
     
+    parser.add_argument("-t", "--threads",metavar='threads', help=f"[{bold}{random_color}INFO{random_color}]: {bold}{random_color}Threading level to make fast process.Defalut 200", type=int, default=200)
+
     return parser.parse_args()
 
-def bruteforcepdf(pdfFile,wordlistfile):
+
+def bruteforcepdf(pdfFile,password):
+
     """Function to bruteforce pdf file"""
-    passwords=[]
-    with open(wordlistfile,'r') as f:
-        f1=f.read().splitlines()
-        for password in f1:
-            passwords.append(password.strip())
-            
+
     reader=PdfReader(pdfFile)
-    for password in passwords:
-        if str(reader.decrypt(password))=='PasswordType.OWNER_PASSWORD':
+
+    if str(reader.decrypt(password))=='PasswordType.OWNER_PASSWORD':
+            
             print(colored(f"[+] Password Found : {password}",'green',attrs=['bold']))
+
+            print("-" * 80)
+
+            print(f"{bold}{random_color}pdfPasswordCracker starting at {datetime.now().strftime('%d/%m/%Y %H:%M:%S')}")
+
+            print("-" * 80)
+
             return password
-            break
+            
 
 
 def decrypt_pdf(encypted_file,decrypted_file,password):
+
     with open(encypted_file,'rb') as encryptedFile, open(decrypted_file,'wb') as decrypteFile:
+
         reader=PdfReader(encryptedFile)
+
         if reader.is_encrypted:
+
             reader.decrypt(password)
+
         writer=PdfFileWriter()
+
         for i in range(reader.getNumPages()):
+
             writer.addPage(reader.getPage(i))
+
         writer.write(decrypted_file)
+
     print(colored(f"File Has been Succcessfully decrypted and saved at : {decrypted_file}",'cyan'))
+
+
+
+def threading(pdffile,wordlistfile):
+
+    args = get_args()
+
+    passwords=[]
+
+    with open(wordlistfile,'r') as f:
+
+        f1=f.read().splitlines()
+
+        for password in f1:
+
+            passwords.append(password.strip())
+    
+    try:
+
+        with concurrent.futures.ThreadPoolExecutor(max_workers=args.threads) as executor:
+            
+           futures = [executor.submit(bruteforcepdf, pdffile,password) for password in passwords]
+           
+        concurrent.futures.wait(futures)
+           
+    except KeyboardInterrupt as e:
+        
+        print(f"[{bold}INFO{random_color}]: httpAlive says BYE!")
+        
+        exit()
+
+    except Exception as e:
+        
+        pass 
+
 
 def main():
 
@@ -110,7 +166,6 @@ def main():
         print(colored("[-] Please specify the location of Pdf file accurately ",'red'))
 
         exit(-1)
-
     
     wordlistfile=args.wordlist
 
@@ -121,14 +176,22 @@ def main():
         exit(-1)
 
 
-    password=bruteforcepdf(pdfFile,wordlistfile)
+    password=threading(pdfFile,wordlistfile)
 
     if password:
 
         decrypt_pdf(pdfFile,f"decrypted-{path.basename(pdfFile)}",password)
 
     else:
+
         print(colored("[-] Password was not Found :",'red'))
+
+        print("-" * 80)
+
+        print(f"{bold}{random_color}pdfPasswordCracker starting at {datetime.now().strftime('%d/%m/%Y %H:%M:%S')}")
+
+        print("-" * 80)
+
 
 if __name__=="__main__":
 
